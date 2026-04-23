@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Family Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Nunito+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pastel-pink:    #FFD6E0;
+    --pastel-pink-dark: #E8799A;
+    --pastel-blue:    #C8E6FF;
+    --pastel-blue-dark: #5AAAE8;
+    --pastel-mint:    #C8F0DC;
+    --pastel-mint-dark: #3DB87A;
+    --pastel-yellow:  #FFF3C4;
+    --pastel-yellow-dark: #D4A017;
+    --pastel-lavender: #E8D5FF;
+    --pastel-lavender-dark: #9B6DD6;
+    --pastel-peach:   #FFE4C8;
+    --pastel-peach-dark: #E07A30;
+    --bg:       #FDF8F4;
+    --surface:  #FFFFFF;
+    --border:   #EDE8E2;
+    --text:     #3D3530;
+    --muted:    #8C7E76;
+    --radius:   16px;
+    --shadow:   0 2px 12px rgba(0,0,0,0.07);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── LAYOUT ── */
+  #app {
+    display: flex;
+    height: 100dvh;
+    width: 100vw;
+  }
+
+  /* LANDSCAPE: left | right */
+  @media (orientation: landscape) {
+    #app { flex-direction: row; }
+    #cal-pane, #todo-pane { width: 50%; height: 100%; }
+    #divider { width: 1px; height: 100%; background: var(--border); flex-shrink: 0; }
+  }
+
+  /* PORTRAIT: top | bottom */
+  @media (orientation: portrait) {
+    #app { flex-direction: column; }
+    #cal-pane, #todo-pane { width: 100%; height: 50%; }
+    #divider { height: 1px; width: 100%; background: var(--border); flex-shrink: 0; }
+  }
+
+  .pane {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pane-inner {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  /* ── HEADER BAR ── */
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 8px;
+    flex-shrink: 0;
+  }
+
+  .pane-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pane-title .icon {
+    font-size: 20px;
+  }
+
+  /* ── CLOCK / DATE ── */
+  #clock-area {
+    text-align: right;
+    line-height: 1.2;
+  }
+
+  #clock {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  #date-display {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── VIEW TOGGLE ── */
+  .view-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--border);
+    border-radius: 10px;
+    padding: 3px;
+  }
+
+  .view-btn {
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+
+  .view-btn.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+
+  /* ── CALENDAR: TODAY+TOMORROW ── */
+  .day-col {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .day-header {
+    padding: 10px 14px;
+    font-weight: 800;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .day-today .day-header { background: var(--pastel-blue); }
+  .day-tomorrow .day-header { background: var(--pastel-lavender); }
+
+  .day-label { font-size: 13px; font-weight: 800; color: var(--text); }
+  .day-date  { font-size: 11px; font-weight: 600; color: var(--muted); }
+
+  .event-list { padding: 8px; }
+
+  .event-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 10px;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+
+  .event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .event-time {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    min-width: 44px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .event-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .no-events {
+    text-align: center;
+    padding: 16px;
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ── CALENDAR: WEEK VIEW ── */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .week-day {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .week-day-header {
+    padding: 6px 4px 4px;
+    text-align: center;
+    background: var(--border);
+  }
+
+  .week-day-name { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+  .week-day-num  { font-size: 16px; font-weight: 800; color: var(--text); line-height: 1.1; }
+
+  .week-day.is-today .week-day-header { background: var(--pastel-blue); }
+  .week-day.is-today .week-day-num { color: var(--pastel-blue-dark); }
+
+  .week-events { padding: 4px; }
+
+  .week-event-dot {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--pastel-yellow);
+    border-radius: 6px;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    line-height: 1.3;
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* ── CALENDAR: MONTH VIEW ── */
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+
+  .month-day-label {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    padding: 4px 0;
+    text-transform: uppercase;
+  }
+
+  .month-cell {
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 4px;
+    min-height: 52px;
+  }
+
+  .month-cell.empty { background: transparent; border-color: transparent; }
+  .month-cell.is-today { border-color: var(--pastel-blue-dark); background: var(--pastel-blue); }
+
+  .month-cell-num { font-size: 11px; font-weight: 700; color: var(--muted); }
+  .month-cell.is-today .month-cell-num { color: var(--pastel-blue-dark); }
+
+  .month-event-pill {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    background: var(--pastel-lavender);
+    color: var(--pastel-lavender-dark);
+    border-radius: 4px;
+    padding: 1px 3px;
+    margin-top: 2px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* ── ICS LOADING / ERROR ── */
+  .cal-status {
+    text-align: center;
+    padding: 24px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .cal-error {
+    background: #FFF0F0;
+    border: 1px solid #FFCDD2;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 12px;
+    color: #C0392B;
+    text-align: center;
+  }
+
+  /* ── SETTINGS PANEL ── */
+  .settings-icon-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    color: var(--muted);
+  }
+  .settings-icon-btn:hover { background: var(--border); }
+
+  .settings-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .settings-overlay.open { display: flex; }
+
+  .settings-panel {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 24px;
+    width: min(90vw, 440px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+    max-height: 80dvh;
+    overflow-y: auto;
+  }
+
+  .settings-panel h2 {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+
+  .settings-section { margin-bottom: 20px; }
+  .settings-section h3 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .settings-row label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 60px;
+  }
+
+  .settings-row input[type="text"] {
+    flex: 1;
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .settings-row input[type="text"]:focus { border-color: var(--pastel-blue-dark); }
+
+  .color-picker-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.selected { border-color: var(--text); }
+
+  .settings-save-btn {
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 10px;
+    background: var(--pastel-blue);
+    color: var(--pastel-blue-dark);
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+    transition: opacity 0.15s;
+  }
+  .settings-save-btn:hover { opacity: 0.85; }
+
+  .ics-help {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  /* ── TODO PANE ── */
+  #todo-pane { background: var(--bg); }
+
+  .kids-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  /* landscape: 3 kids side by side */
+  @media (orientation: landscape) {
+    .kids-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* portrait: 3 kids stacked */
+  @media (orientation: portrait) {
+    .kids-grid { grid-template-columns: 1fr; }
+  }
+
+  .kid-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .kid-header {
+    padding: 10px 14px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .kid-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .kid-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .kid-progress {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .kid-tasks { padding: 4px 10px 10px; flex: 1; overflow-y: auto; }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .task-item:hover { background: var(--bg); }
+  .task-item:active { background: var(--border); }
+
+  .task-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    background: var(--surface);
+  }
+
+  .task-item.done .task-check {
+    border-color: transparent;
+  }
+
+  .task-check-inner {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transform: scale(0);
+    transition: transform 0.15s;
+  }
+
+  .task-item.done .task-check-inner { transform: scale(1); }
+
+  .task-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+    line-height: 1.3;
+    transition: all 0.2s;
+  }
+
+  .task-item.done .task-label {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+
+  .task-delete-btn {
+    background: none;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 2px 4px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    line-height: 1;
+  }
+
+  .task-item:hover .task-delete-btn { opacity: 1; }
+
+  .add-task-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .add-task-input {
+    flex: 1;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .add-task-input:focus { border-color: var(--pastel-blue-dark); }
+
+  .add-task-btn {
+    font-family: 'Nunito', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--muted);
+    line-height: 1;
+    padding: 0 4px;
+    transition: color 0.1s, transform 0.1s;
+  }
+  .add-task-btn:hover { color: var(--text); transform: scale(1.2); }
+
+  .reset-btn {
+    font-family: 'Nunito', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    background: none;
+    cursor: pointer;
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 3px 7px;
+    transition: background 0.1s;
+  }
+  .reset-btn:hover { background: var(--border); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 10px 8px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  /* ── CONFETTI (emoji burst) ── */
+  .confetti-msg {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px;
+    animation: pop 0.4s ease;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* ── UTILITY ── */
+  .flex-center { display: flex; align-items: center; justify-content: center; }
+  .gap-4 { gap: 4px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══════════════════════════════════════ CALENDAR PANE -->
+  <div id="cal-pane" class="pane">
+    <div class="pane-header">
+      <div class="pane-title">
+        <span class="icon">📅</span>
+        Family Calendar
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="clock-area">
+          <div id="clock">--:--</div>
+          <div id="date-display">Loading…</div>
+        </div>
+        <button class="settings-icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:6px;padding:0 16px 8px;">
+      <div class="view-toggle">
+        <button class="view-btn active" id="btn-2day"  onclick="setView('2day')">Today+</button>
+        <button class="view-btn"        id="btn-week"  onclick="setView('week')">Week</button>
+        <button class="view-btn"        id="btn-month" onclick="setView('month')">Month</button>
+      </div>
+      <button class="reset-btn" onclick="loadCalendar()" title="Refresh calendar">↻ Refresh</button>
+    </div>
+
+    <div class="pane-inner" id="cal-content">
+      <div class="cal-status">Loading calendar…</div>
+    </div>
+  </div>
+
+  <div id="divider"></div>
+
+  <!-- ═══════════════════════════════════════ TODO PANE -->
+  <div id="todo-pane" class="pane">
+    <div class="pane-header">
+      <div class="pane-title">
+        <span class="icon">⭐</span>
+        Daily Tasks
+      </div>
+      <button class="settings-icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
+    </div>
+    <div class="pane-inner" id="todo-content">
+      <!-- kids rendered here -->
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════ SETTINGS OVERLAY -->
+<div class="settings-overlay" id="settings-overlay" onclick="maybeCloseSettings(event)">
+  <div class="settings-panel" id="settings-panel">
+    <h2>⚙️ Dashboard Settings</h2>
+
+    <div class="settings-section">
+      <h3>Google Calendar (ICS)</h3>
+      <div class="settings-row">
+        <label>ICS URL</label>
+        <input type="text" id="s-ics-url" placeholder="Paste public ICS URL…">
+      </div>
+      <p class="ics-help">
+        In Google Calendar → Settings → your calendar → "Public address in iCal format". Paste the <strong>webcal://…</strong> or <strong>https://…</strong> URL here. The calendar must be set to public.
+      </p>
+    </div>
+
+    <div class="settings-section">
+      <h3>Kids</h3>
+      <div id="kids-settings">
+        <!-- generated -->
+      </div>
+    </div>
+
+    <button class="settings-save-btn" onclick="saveSettings()">Save &amp; Close</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   DATA & STATE
+═══════════════════════════════════════════════════════════ */
+const KID_COLORS = [
+  { bg: '#FFD6E0', accent: '#E8799A', label: 'Pink'   },
+  { bg: '#C8E6FF', accent: '#5AAAE8', label: 'Blue'   },
+  { bg: '#C8F0DC', accent: '#3DB87A', label: 'Mint'   },
+  { bg: '#FFF3C4', accent: '#D4A017', label: 'Yellow' },
+  { bg: '#E8D5FF', accent: '#9B6DD6', label: 'Purple' },
+  { bg: '#FFE4C8', accent: '#E07A30', label: 'Peach'  },
+];
+
+const DEFAULT_KIDS = [
+  { name: 'Kid 1', color: 0, tasks: ['Make bed', 'Brush teeth', 'Get dressed', 'Pack backpack', 'Read for 20 min'] },
+  { name: 'Kid 2', color: 1, tasks: ['Make bed', 'Brush teeth', 'Get dressed', 'Pack backpack', 'Practice instrument'] },
+  { name: 'Kid 3', color: 2, tasks: ['Make bed', 'Brush teeth', 'Get dressed', 'Feed pet', 'Homework'] },
+];
+
+let cfg = load('fam_cfg') || {
+  icsUrl: '',
+  kids: DEFAULT_KIDS
+};
+
+// Daily task completion resets at midnight
+let todayKey = todayStr();
+let tasksDone = load('fam_done_' + todayKey) || {};
+
+let calView = '2day';
+let calEvents = [];
+let calError = '';
+let calLoaded = false;
+
+/* ═══════════════════════════════════════════════════════════
+   STORAGE
+═══════════════════════════════════════════════════════════ */
+function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+function load(k)    { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CLOCK
+═══════════════════════════════════════════════════════════ */
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hh = h % 12 || 12;
+  const mm = String(m).padStart(2,'0');
+  document.getElementById('clock').textContent = `${hh}:${mm} ${ampm}`;
+  document.getElementById('date-display').textContent = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+
+  // Check if we crossed midnight
+  const newKey = todayStr();
+  if (newKey !== todayKey) {
+    todayKey = newKey;
+    tasksDone = {};
+    renderTodo();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ICS PARSER
+═══════════════════════════════════════════════════════════ */
+function parseICS(text) {
+  const events = [];
+  const lines = text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').split('\n');
+  let ev = null;
+  for (let line of lines) {
+    if (line === 'BEGIN:VEVENT') { ev = {}; continue; }
+    if (line === 'END:VEVENT'   && ev) { events.push(ev); ev = null; continue; }
+    if (!ev) continue;
+    const sep = line.indexOf(':');
+    if (sep === -1) continue;
+    const key = line.substring(0, sep).split(';')[0].toUpperCase();
+    const val = line.substring(sep+1).trim();
+    if (key === 'SUMMARY')   ev.title   = val.replace(/\\n/g,' ').replace(/\\,/g,',');
+    if (key === 'DTSTART')   ev.start   = parseICSDate(val);
+    if (key === 'DTEND')     ev.end     = parseICSDate(val);
+    if (key === 'RRULE')     ev.rrule   = val;
+    if (key === 'DESCRIPTION') ev.desc  = val.replace(/\\n/g,' ').trim();
+  }
+  return events;
+}
+
+function parseICSDate(s) {
+  // DATE only: 20240601
+  if (/^\d{8}$/.test(s)) {
+    return new Date(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8));
+  }
+  // DATETIME: 20240601T120000Z or 20240601T120000
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/);
+  if (m) {
+    if (m[7]==='Z') return new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]));
+    return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]);
+  }
+  return null;
+}
+
+function expandRecurring(event, from, to) {
+  // Very basic: daily, weekly, monthly repeating events for the date range
+  if (!event.rrule || !event.start) return [];
+  const rule = event.rrule;
+  const freq = (rule.match(/FREQ=(\w+)/) || [])[1];
+  const interval = parseInt((rule.match(/INTERVAL=(\d+)/) || ['','1'])[1]);
+  const count = parseInt((rule.match(/COUNT=(\d+)/) || ['','999'])[1]);
+  const untilStr = (rule.match(/UNTIL=([^;]+)/) || [])[1];
+  const until = untilStr ? parseICSDate(untilStr) : to;
+
+  const results = [];
+  let cur = new Date(event.start);
+  let n = 0;
+  while (cur <= to && cur <= (until || to) && n < count) {
+    if (cur >= from) {
+      results.push({ ...event, start: new Date(cur), allDay: !event.start.toTimeString });
+    }
+    if (freq === 'DAILY')   cur.setDate(cur.getDate() + interval);
+    else if (freq === 'WEEKLY') cur.setDate(cur.getDate() + 7*interval);
+    else if (freq === 'MONTHLY') cur.setMonth(cur.getMonth() + interval);
+    else break;
+    n++;
+  }
+  return results;
+}
+
+function eventsForRange(events, from, to) {
+  const result = [];
+  for (const ev of events) {
+    if (!ev.start) continue;
+    const s = ev.start;
+    if (ev.rrule) {
+      result.push(...expandRecurring(ev, from, to));
+    } else if (s >= from && s <= to) {
+      result.push(ev);
+    }
+  }
+  return result.sort((a,b) => a.start - b.start);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CALENDAR LOAD & RENDER
+═══════════════════════════════════════════════════════════ */
+async function loadCalendar() {
+  const url = cfg.icsUrl.trim();
+  if (!url) {
+    calEvents = [];
+    calError = '';
+    calLoaded = true;
+    renderCal();
+    return;
+  }
+
+  document.getElementById('cal-content').innerHTML = '<div class="cal-status">Fetching calendar…</div>';
+
+  // Convert webcal:// → https://
+  const fetchUrl = url.replace(/^webcal:\/\//i, 'https://');
+
+  // Use a CORS proxy since direct fetch is blocked for cross-origin ICS
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(fetchUrl)}`;
+
+  try {
+    const res = await fetch(proxyUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (!text.includes('BEGIN:VCALENDAR')) throw new Error('Not a valid ICS file');
+    calEvents = parseICS(text);
+    calError = '';
+  } catch(e) {
+    calError = e.message;
+    calEvents = [];
+  }
+  calLoaded = true;
+  renderCal();
+}
+
+function setView(v) {
+  calView = v;
+  ['2day','week','month'].forEach(x => document.getElementById('btn-'+x).classList.toggle('active', x===v));
+  renderCal();
+}
+
+function renderCal() {
+  const el = document.getElementById('cal-content');
+  if (!calLoaded) { el.innerHTML = '<div class="cal-status">Loading…</div>'; return; }
+
+  if (calError) {
+    el.innerHTML = `<div class="cal-error">⚠️ Could not load calendar: ${calError}<br><br>Check your ICS URL in Settings. Make sure your Google Calendar is set to public and you're using the iCal/ICS public URL.</div>`;
+    return;
+  }
+
+  if (calView === '2day') renderTodayTomorrow(el);
+  else if (calView === 'week') renderWeek(el);
+  else renderMonth(el);
+}
+
+function dayRange(date) {
+  const s = new Date(date); s.setHours(0,0,0,0);
+  const e = new Date(date); e.setHours(23,59,59,999);
+  return [s, e];
+}
+
+function renderTodayTomorrow(el) {
+  const today    = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+
+  const days = [
+    { label: 'Today',    shortDate: fmtDate(today),    date: today,    cls: 'day-today' },
+    { label: 'Tomorrow', shortDate: fmtDate(tomorrow), date: tomorrow, cls: 'day-tomorrow' },
+  ];
+
+  el.innerHTML = days.map(day => {
+    const [s, e] = dayRange(day.date);
+    const evs = eventsForRange(calEvents, s, e);
+    const dotsColors = ['#FFD6E0','#C8E6FF','#C8F0DC','#FFF3C4','#E8D5FF','#FFE4C8'];
+    return `<div class="day-col ${day.cls}">
+      <div class="day-header">
+        <span class="day-label">${day.label}</span>
+        <span class="day-date">${day.shortDate}</span>
+      </div>
+      <div class="event-list">
+        ${evs.length === 0
+          ? `<div class="no-events">No events — enjoy the day! ☀️</div>`
+          : evs.map((ev,i) => `
+            <div class="event-item" style="background:${dotsColors[i%dotsColors.length]}18;border-color:${dotsColors[i%dotsColors.length]};">
+              <div class="event-dot" style="background:${dotsColors[i%dotsColors.length]};"></div>
+              <div class="event-time">${fmtTime(ev.start)}</div>
+              <div class="event-title">${escHtml(ev.title||'Event')}</div>
+            </div>`).join('')
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderWeek(el) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = today.getDay();
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - dow);
+
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d;
+  });
+
+  const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  el.innerHTML = `<div class="week-grid">
+    ${days.map(d => {
+      const isToday = d.toDateString() === today.toDateString();
+      const [s,e] = dayRange(d);
+      const evs = eventsForRange(calEvents, s, e);
+      return `<div class="week-day ${isToday?'is-today':''}">
+        <div class="week-day-header">
+          <div class="week-day-name">${DAYS[d.getDay()]}</div>
+          <div class="week-day-num">${d.getDate()}</div>
+        </div>
+        <div class="week-events">
+          ${evs.slice(0,3).map(ev=>`<span class="week-event-dot">${fmtTime(ev.start)} ${escHtml(ev.title||'')}</span>`).join('')}
+          ${evs.length > 3 ? `<span class="week-event-dot" style="background:var(--border);">+${evs.length-3} more</span>` : ''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderMonth(el) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const first = new Date(today.getFullYear(), today.getMonth(), 1);
+  const last  = new Date(today.getFullYear(), today.getMonth()+1, 0);
+  const startDow = first.getDay();
+  const totalCells = Math.ceil((startDow + last.getDate()) / 7) * 7;
+
+  const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html = `<div class="month-grid">
+    ${DAY_LABELS.map(d=>`<div class="month-day-label">${d}</div>`).join('')}`;
+
+  for (let i = 0; i < totalCells; i++) {
+    const cellDate = new Date(first); cellDate.setDate(1 - startDow + i);
+    const inMonth = cellDate.getMonth() === today.getMonth();
+    const isToday = cellDate.toDateString() === today.toDateString();
+    const [s,e] = dayRange(cellDate);
+    const evs = inMonth ? eventsForRange(calEvents, s, e) : [];
+
+    html += `<div class="month-cell ${!inMonth?'empty':''} ${isToday?'is-today':''}" style="${!inMonth?'opacity:0.3':''}">
+      <div class="month-cell-num">${cellDate.getDate()}</div>
+      ${evs.slice(0,2).map(ev=>`<span class="month-event-pill">${escHtml(ev.title||'')}</span>`).join('')}
+      ${evs.length>2?`<span class="month-event-pill" style="background:var(--border);color:var(--muted);">+${evs.length-2}</span>`:''}
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TODO RENDER
+═══════════════════════════════════════════════════════════ */
+function renderTodo() {
+  const el = document.getElementById('todo-content');
+  el.innerHTML = `<div class="kids-grid">${cfg.kids.map((kid,ki) => renderKidCard(kid,ki)).join('')}</div>`;
+}
+
+function renderKidCard(kid, ki) {
+  const col = KID_COLORS[kid.color % KID_COLORS.length];
+  const tasks = kid.tasks || [];
+  const done  = tasks.filter((_,ti) => tasksDone[`${ki}_${ti}`]).length;
+  const pct   = tasks.length ? Math.round(done/tasks.length*100) : 0;
+  const allDone = done === tasks.length && tasks.length > 0;
+
+  return `<div class="kid-card" id="kid-${ki}">
+    <div class="kid-header" style="background:${col.bg};">
+      <div class="kid-name">
+        <div class="kid-avatar" style="background:${col.accent};color:#fff;">
+          ${escHtml(kid.name.charAt(0).toUpperCase())}
+        </div>
+        ${escHtml(kid.name)}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="kid-progress">${done}/${tasks.length}</span>
+        <button class="reset-btn" onclick="resetKid(${ki})" title="Reset today">↺</button>
+      </div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" style="width:${pct}%;background:${col.accent};"></div>
+    </div>
+    <div class="kid-tasks" id="tasks-${ki}">
+      ${tasks.map((t,ti) => {
+        const isDone = !!tasksDone[`${ki}_${ti}`];
+        return `<div class="task-item ${isDone?'done':''}" onclick="toggleTask(${ki},${ti})">
+          <div class="task-check" style="${isDone ? `background:${col.accent};border-color:${col.accent};` : `border-color:${col.accent};`}">
+            <div class="task-check-inner" style="background:#fff;"></div>
+          </div>
+          <div class="task-label">${escHtml(t)}</div>
+          <button class="task-delete-btn" onclick="deleteTask(event,${ki},${ti})" title="Remove task">✕</button>
+        </div>`;
+      }).join('')}
+      ${allDone && tasks.length > 0 ? `<div class="confetti-msg">🎉 All done! Great job, ${escHtml(kid.name)}!</div>` : ''}
+    </div>
+    <div class="add-task-row">
+      <input class="add-task-input" id="newtask-${ki}" type="text" placeholder="Add a task…" maxlength="80"
+        onkeydown="if(event.key==='Enter') addTask(${ki})">
+      <button class="add-task-btn" onclick="addTask(${ki})">＋</button>
+    </div>
+  </div>`;
+}
+
+function toggleTask(ki, ti) {
+  const key = `${ki}_${ti}`;
+  tasksDone[key] = !tasksDone[key];
+  save('fam_done_' + todayKey, tasksDone);
+  renderTodo();
+}
+
+function deleteTask(e, ki, ti) {
+  e.stopPropagation();
+  cfg.kids[ki].tasks.splice(ti, 1);
+  // Re-index done state
+  const newDone = {};
+  Object.keys(tasksDone).forEach(k => {
+    const [k_ki, k_ti] = k.split('_').map(Number);
+    if (k_ki !== ki) { newDone[k] = tasksDone[k]; return; }
+    if (k_ti < ti) newDone[k] = tasksDone[k];
+    if (k_ti > ti) newDone[`${k_ki}_${k_ti-1}`] = tasksDone[k];
+  });
+  tasksDone = newDone;
+  save('fam_cfg', cfg);
+  save('fam_done_' + todayKey, tasksDone);
+  renderTodo();
+}
+
+function addTask(ki) {
+  const inp = document.getElementById(`newtask-${ki}`);
+  const val = inp.value.trim();
+  if (!val) return;
+  cfg.kids[ki].tasks.push(val);
+  save('fam_cfg', cfg);
+  inp.value = '';
+  renderTodo();
+  // Scroll to bottom of tasks
+  setTimeout(() => {
+    const el = document.getElementById(`tasks-${ki}`);
+    if (el) el.scrollTop = el.scrollHeight;
+  }, 50);
+}
+
+function resetKid(ki) {
+  cfg.kids[ki].tasks.forEach((_,ti) => delete tasksDone[`${ki}_${ti}`]);
+  save('fam_done_' + todayKey, tasksDone);
+  renderTodo();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════════════════════ */
+function openSettings() {
+  document.getElementById('s-ics-url').value = cfg.icsUrl || '';
+  renderKidsSettings();
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function maybeCloseSettings(e) {
+  if (e.target === document.getElementById('settings-overlay')) closeSettings();
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function renderKidsSettings() {
+  const el = document.getElementById('kids-settings');
+  el.innerHTML = cfg.kids.map((kid, ki) => {
+    const col = KID_COLORS[kid.color % KID_COLORS.length];
+    return `<div style="background:var(--bg);border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div class="settings-row">
+        <label>Kid ${ki+1}</label>
+        <input type="text" id="s-kid-name-${ki}" value="${escHtml(kid.name)}" placeholder="Name" style="flex:1;">
+      </div>
+      <div class="color-picker-row">
+        ${KID_COLORS.map((c,ci) => `<div class="color-swatch ${kid.color===ci?'selected':''}"
+          style="background:${c.bg};border-color:${kid.color===ci?c.accent:'transparent'};"
+          onclick="selectKidColor(${ki},${ci})"
+          title="${c.label}"></div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectKidColor(ki, ci) {
+  cfg.kids[ki].color = ci;
+  renderKidsSettings();
+}
+
+function saveSettings() {
+  cfg.icsUrl = document.getElementById('s-ics-url').value.trim();
+  cfg.kids.forEach((kid, ki) => {
+    const nameEl = document.getElementById(`s-kid-name-${ki}`);
+    if (nameEl) kid.name = nameEl.value.trim() || `Kid ${ki+1}`;
+  });
+  save('fam_cfg', cfg);
+  closeSettings();
+  renderTodo();
+  loadCalendar();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════ */
+function fmtDate(d) {
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function fmtTime(d) {
+  if (!d) return 'All day';
+  const h = d.getHours(), m = d.getMinutes();
+  if (h===0 && m===0) return 'All day';
+  const ampm = h>=12?'PM':'AM';
+  return `${h%12||12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+updateClock();
+setInterval(updateClock, 10000);
+renderTodo();
+loadCalendar();
+</script>
+</body>
+</html>
