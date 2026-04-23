@@ -1,4 +1,4 @@
-# 🏠 Family Dashboard 🏠
+# 🏠 Family Dashboard
 
 A soft, pastel family calendar + kids daily task tracker.  
 Built for wall-mounted displays, Raspberry Pi, or Android kitchen screens.
